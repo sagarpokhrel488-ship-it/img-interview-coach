@@ -1,0 +1,10 @@
+{
+  "name": "IMG Interview Coach",
+  "short_name": "IMG Interview Coach",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#0b1f3a",
+  "description": "Internal Medicine residency interview practice for IMGs",
+  "icons": []
+}

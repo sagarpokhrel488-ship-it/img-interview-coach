@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1f3a">
+<link rel="manifest" href="manifest.json">
+<title>IMG Interview Coach</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f7fb;color:#142033;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif}
+header{background:#0b1f3a;color:#fff;padding:calc(18px + env(safe-area-inset-top)) 20px 20px}
+h1{font-size:24px;margin:0 0 5px}header p{margin:0;color:#cbd7e8;font-size:14px}
+main{max-width:900px;margin:auto;padding:18px 16px 40px}.card{background:#fff;border:1px solid #dce3ec;border-radius:20px;padding:20px;margin-bottom:16px;box-shadow:0 5px 20px #12233a0b}
+h2{margin:0 0 7px}.muted{color:#667085;font-size:14px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:16px}
+.choice{border:2px solid #dce3ec;border-radius:16px;padding:16px;min-height:100px}.choice.selected{border-color:#1769e0;background:#f0f6ff}
+.choice b{display:block;margin-bottom:6px}.choice small{color:#667085;line-height:1.45}
+button{border:0;border-radius:13px;padding:13px 17px;font-weight:700;font-size:15px;background:#1769e0;color:#fff;cursor:pointer}
+button.secondary{background:#edf2f7;color:#223047}button.red{background:#c93636}button:disabled{opacity:.45}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.pill{background:#eaf2ff;color:#1769e0;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700}
+.question{font-size:24px;line-height:1.4;margin:18px 0}.transcript{min-height:110px;border:1px solid #dce3ec;border-radius:14px;padding:14px;background:#fafbfc;line-height:1.5}
+.mic{width:78px;height:78px;border-radius:50%;font-size:28px;padding:0}.recording{background:#c93636;box-shadow:0 0 0 12px #c9363620}
+.status{font-size:13px;color:#667085;min-height:20px}.hidden{display:none!important}
+.metricgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.metric{border:1px solid #dce3ec;border-radius:13px;padding:13px}.metric b{display:block;margin-bottom:7px}.bar{height:7px;background:#e8edf3;border-radius:8px}.bar i{display:block;height:100%;background:#1769e0;border-radius:8px}
+.note{background:#f7f9fc;border-left:4px solid #1769e0;border-radius:8px;padding:12px;margin:9px 0}.big{font-size:36px;font-weight:800}
+@media(max-width:600px){.question{font-size:21px}main{padding:12px}.card{padding:16px}}
+</style>
+</head>
+<body>
+<header><h1>IMG Interview Coach</h1><p>Internal Medicine residency interview practice for IMGs</p></header>
+<main>
+<section id="home" class="card">
+<h2>Choose your interviewer</h2>
+<p class="muted">AI-simulated interviewer styles. These do not represent actual Harvard, Stanford, or Mayo personnel.</p>
+<div class="grid" id="people"></div>
+<h3>Interview mode</h3>
+<div class="row">
+<button class="secondary mode" data-mode="Standard">Standard</button>
+<button class="secondary mode" data-mode="Challenging">Challenging</button>
+<button class="secondary mode" data-mode="Stress">Stress</button>
+</div>
+<button id="start" disabled style="margin-top:18px">Start Interview</button>
+</section>
+
+<section id="interview" class="card hidden">
+<div class="row"><span class="pill" id="who"></span><span class="muted" id="counter"></span></div>
+<div class="question" id="q"></div>
+<div id="answer" class="transcript" contenteditable="true">Tap 🎙️ and speak your answer, or type here.</div>
+<p class="status" id="status"></p>
+<div class="row">
+<button class="mic" id="mic">🎙️</button>
+<button id="send" disabled>Send Answer</button>
+<button class="secondary" id="repeat">🔊 Repeat</button>
+<button class="red" id="finish">Finish</button>
+</div>
+</section>
+
+<section id="result" class="card hidden">
+<h2>Interview report</h2>
+<div class="big" id="score"></div>
+<p class="muted">Prototype scoring. The production version can use an AI model to evaluate the complete interview.</p>
+<div class="metricgrid" id="metrics"></div>
+<h3>What you did well</h3><div class="note">Practice answering with specific clinical examples and keep your main message easy to identify.</div>
+<h3>Improve next</h3><div class="note">Use a clear structure: context → your action → result → what you learned.</div>
+<h3>Recommended next interview</h3><div class="note" id="recommend"></div>
+<button onclick="location.reload()">Start New Interview</button>
+</section>
+</main>
+<script>
+const people=[
+["Harvard-style Program Director","Academic, research and clinical reasoning focused"],
+["Harvard-style Chief Resident","Resident life, teamwork and communication focused"],
+["Stanford-style Program Director","Innovation, growth and long-term goals focused"],
+["Stanford-style Chief Resident","Adaptability, collaboration and learning focused"],
+["Mayo Clinic-style Program Director","Structured, patient-centered and professionalism focused"],
+["Mayo Clinic-style Chief Resident","Practical residency, teamwork and resilience focused"]
+];
+const qs=[
+"Tell me about yourself.",
+"Why did you choose Internal Medicine?",
+"Why do you want to train in the United States?",
+"Why are you interested in our program?",
+"Tell me about a challenging clinical case you managed.",
+"Tell me about a time you received difficult feedback.",
+"How has your experience as an IMG prepared you for residency?",
+"Tell me about your research experience.",
+"What is one weakness you are actively working on?",
+"Where do you see yourself five years after residency?"
+];
+let selected=null,mode="Standard",i=0,answers=[],recognition,listening=false,current="";
+const $=x=>document.getElementById(x);
+$("people").innerHTML=people.map((p,n)=>`<div class="choice" data-n="${n}"><b>${p[0]}</b><small>${p[1]}</small></div>`).join("");
+document.querySelectorAll(".choice").forEach(x=>x.onclick=()=>{document.querySelectorAll(".choice").forEach(y=>y.classList.remove("selected"));x.classList.add("selected");selected=people[+x.dataset.n][0];$("start").disabled=false});
+document.querySelectorAll(".mode").forEach(x=>x.onclick=()=>{document.querySelectorAll(".mode").forEach(y=>y.classList.add("secondary"));x.classList.remove("secondary");mode=x.dataset.mode});
+$("start").onclick=()=>{i=0;answers=[];$("home").classList.add("hidden");$("interview").classList.remove("hidden");$("who").textContent=selected+" • "+mode;show()};
+function speak(t){if(!speechSynthesis)return;speechSynthesis.cancel();let u=new SpeechSynthesisUtterance(t);u.lang="en-US";u.rate=.96;speechSynthesis.speak(u)}
+function show(){let q=qs[i];$("q").textContent=q;$("counter").textContent=`Question ${i+1} of ${qs.length}`;$("answer").textContent="Tap 🎙️ and speak your answer, or type here.";current="";$("send").disabled=true;$("status").textContent="";speak(q)}
+$("repeat").onclick=()=>speak($("q").textContent);
+$("answer").addEventListener("input",()=>{current=$("answer").innerText.trim();$("send").disabled=!current});
+if(window.SpeechRecognition||window.webkitSpeechRecognition){
+ let R=window.SpeechRecognition||window.webkitSpeechRecognition;recognition=new R();recognition.continuous=true;recognition.interimResults=true;recognition.lang="en-US";
+ recognition.onresult=e=>{let fin="",inter="";for(let j=e.resultIndex;j<e.results.length;j++){let t=e.results[j][0].transcript;e.results[j].isFinal?fin+=t+" ":inter+=t}current=(current+" "+fin).trim();$("answer").textContent=(current+" "+inter).trim();$("send").disabled=!current};
+ recognition.onend=()=>{if(listening)try{recognition.start()}catch(e){}};
+}else{$("status").textContent="Voice recognition is unavailable in this browser; typing is still available."}
+$("mic").onclick=()=>{if(!recognition){$("status").textContent="Use Safari/Chrome with speech recognition support, or type your answer.";return}if(!listening){listening=true;$("mic").classList.add("recording");$("status").textContent="Recording… tap the microphone again when finished.";recognition.start()}else{listening=false;$("mic").classList.remove("recording");$("status").textContent="Recording stopped. Review and send.";recognition.stop()}};
+$("send").onclick=()=>{answers.push({q:qs[i],a:current});if(i<qs.length-1){i++;show()}else finish()};
+$("finish").onclick=finish;
+function finish(){if(recognition){listening=false;try{recognition.stop()}catch(e){}}$("interview").classList.add("hidden");$("result").classList.remove("hidden");let words=answers.reduce((s,x)=>s+x.a.split(/\s+/).filter(Boolean).length,0);let score=Math.max(5.8,Math.min(9.5,6+Math.min(2,words/180)));$("score").textContent=score.toFixed(1)+"/10";let ms=[["Communication",score+.3],["Structure",score-.1],["Specificity",score+.1],["Professionalism",score+.5],["IMG readiness",score-.2]];$("metrics").innerHTML=ms.map(x=>{let v=Math.max(1,Math.min(10,x[1]));return `<div class="metric"><b>${x[0]}</b>${v.toFixed(1)}/10<div class="bar"><i style="width:${v*10}%"></i></div></div>`}).join("");$("recommend").textContent=mode==="Standard"?"Repeat in Challenging mode and focus on concise, specific examples.":"Repeat the same interviewer with a fresh question set and compare your answer structure."}
+</script>
+</body>
+</html>
